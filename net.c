@@ -81,7 +81,7 @@ net_device_output(struct net_device *dev, uint16_t type, const uint8_t *data, si
         return -1;
     }
     if (len > dev->mtu) {
-        errorf("too long, dev=%s, mtu=%u, len=%zu", dev->name, dev->mtu, len);
+        errorf("packet larger than MTU, dev=%s, mtu=%u, len=%zu", dev->name, dev->mtu, len);
         return -1;
     }
     debugf("dev=%s, type=0x%04x, len=%zu", dev->name, type, len);
