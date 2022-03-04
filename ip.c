@@ -238,37 +238,22 @@ ip_input(const uint8_t *data, size_t len, struct net_device *dev)
 static int
 ip_output_device(struct ip_iface *iface, const uint8_t *data, size_t len, ip_addr_t dst)
 {
-    struct ip_iface *iface;
-    char addr[IP_ADDR_STR_LEN];
-    uint16_t id;
+    uint8_t hwaddr[NET_DEVICE_ADDR_LEN] = {};
 
-    if (src == IP_ADDR_ANY) {
-        errorf("ip routing does not implement");
-        return -1;
-    } else { /* NOTE: I'll rewrite this block later. */
-
-
-
-
-
-
-
-
-
+    if (NET_IFACE(iface)->dev->flags & NET_DEVICE_FLAG_NEED_ARP) {
+        if (dst == iface->broadcast || dst == IP_ADDR_BROADCAST) {
+            memcpy(hwaddr, NET_IFACE(iface)->dev->broadcast, NET_IFACE(iface)->dev->alen);
+        } else {
+            errorf("arp does not implement");
+            return -1;
+        }
     }
-    if (NET_IFACE(iface)->dev->mtu < IP_HDR_SIZE_MIN + len) {
-        errorf("too long, dev=%s, mtu=%u < %zu",
-            NET_IFACE(iface)->dev->name, NET_IFACE(iface)->dev->mtu, IP_HDR_SIZE_MIN + len);
-        return -1;
-    }
-    id = ip_generate_id();
-    if (ip_output_core(iface, protocol, data, len, iface->unicast, dst, id, 0) == -1) {
-        errorf("ip_output_core() failure");
-        return -1;
-    }
-    return len;
+
+    return net_device_output(NET_IFACE(iface)->dev, NET_PROTOCOL_TYPE_IP, data, len, hwaddr);
+
 
 }
+
 
 static ssize_t
 ip_output_core(struct ip_iface *iface, uint8_t protocol, const uint8_t *data, size_t len, ip_addr_t src, ip_addr_t dst, uint16_t id, uint16_t offset)
@@ -281,7 +266,7 @@ ip_output_core(struct ip_iface *iface, uint8_t protocol, const uint8_t *data, si
     hdr = (struct ip_hdr *)buf;
 
     hlen = IP_HDR_SIZE_MIN;
-    hdr->vhl = (IP_VERSION_IPV4 << 4) | (hlen >> 2)
+    hdr->vhl = (IP_VERSION_IPV4 << 4) | (hlen >> 2);
     hdr->tos = 0;
     total = hlen + len;
     hdr->total = hton16(total);
