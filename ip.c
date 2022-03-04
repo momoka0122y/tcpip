@@ -25,11 +25,18 @@ struct ip_hdr {
     uint8_t options[];
 };
 
+struct ip_protocol {
+    struct ip_protocol *next;
+    uint8_t type;
+    void (*handler)(const uint8_t *data, size_t len, ip_addr_t src, ip_addr_t dst, struct ip_iface *iface);
+};
+
 const ip_addr_t IP_ADDR_ANY       = 0x00000000; /* 0.0.0.0 */
 const ip_addr_t IP_ADDR_BROADCAST = 0xffffffff; /* 255.255.255.255 */
 
 /* NOTE: if you want to add/delete the entries after net_run(), you need to protect these lists with a mutex. */
 static struct ip_iface *ifaces;
+static struct ip_protocol *protocols;
 
 int
 ip_addr_pton(const char *p, ip_addr_t *n)
@@ -141,7 +148,6 @@ ip_iface_register(struct net_device *dev, struct ip_iface *iface)
         ip_addr_ntop(iface->netmask, addr2, sizeof(addr2)),
         ip_addr_ntop(iface->broadcast, addr3, sizeof(addr3)));
     return 0;
-
 }
 
 struct ip_iface *
@@ -151,13 +157,36 @@ ip_iface_select(ip_addr_t addr)
 
     for (entry = ifaces; entry; entry = entry->next) {
         if (entry->unicast == addr) {
-            // return じゃないの！？
-            return entry;
             break;
         }
     }
-    // ここNULLじゃないの？
-    return NULL;
+    return entry;
+}
+
+/* NOTE: must not be call after net_run() */
+int
+ip_protocol_register(uint8_t type, void (*handler)(const uint8_t *data, size_t len, ip_addr_t src, ip_addr_t dst, struct ip_iface *iface))
+{
+    struct ip_protocol *entry;
+
+    for (entry = protocols; entry; entry = entry->next) {
+        if (entry->type == type) {
+            errorf("already exists, type=%u", type);
+            return -1;
+        }
+    }
+    entry = memory_alloc(sizeof(*entry));
+    if (!entry) {
+        errorf("memory_alloc() failure");
+        return -1;
+    }
+    entry->type = type;
+    // よくわからない
+    entry->handler = handler;
+    entry->next = protocols;
+    protocols = entry;
+    infof("registered, type=%u", entry->type);
+    return 0;
 }
 
 static void
@@ -168,25 +197,20 @@ ip_input(const uint8_t *data, size_t len, struct net_device *dev)
     uint8_t v,hl;
     struct ip_iface *iface;
     char addr[IP_ADDR_STR_LEN];
+    struct ip_protocol *proto;
 
     //入力データの長さがIPヘッダの最小サイズより小さい場合はエラー
     if (len < IP_HDR_SIZE_MIN) {
         errorf("too short");
         return;
     }
-
-
-
     hdr = (struct ip_hdr *) data; //入力データをIPヘッダ構造体のポインタへキャスト
 
     v = (hdr->vhl & 0xf0) >> 4; //上位 4bit = バージョン
     hl = hdr->vhl & 0x0f; // 下位 4bit = IPヘッダ長
 
-
     hlen = hl << 2; //IPヘッダ長 … 32bit（4byte）単位の値が格納されているので4倍して 8bit（1byte）単位の値にする
-    total = ntoh16(hdr->total);
-
-
+    
    if (v != IP_VERSION_IPV4) {
         errorf("ip version error: v=%u", v);
         return;
@@ -195,8 +219,7 @@ ip_input(const uint8_t *data, size_t len, struct net_device *dev)
         errorf("header length error: len=%zu < hlen=%u", len, hlen);
         return;
    }
-
-
+    total = ntoh16(hdr->total);
     if (len < total) {
         errorf("total length error: len=%zu < total=%u", len, total);
         return; 
@@ -233,6 +256,14 @@ ip_input(const uint8_t *data, size_t len, struct net_device *dev)
     debugf("dev=%s, iface=%s, protocol=%u, total=%u",
         dev->name, ip_addr_ntop(iface->unicast, addr, sizeof(addr)), hdr->protocol, total);
     ip_dump(data, total);
+    for (proto = protocols; proto; proto = proto->next) {
+        if (proto->type == hdr->protocol) {
+            proto->handler((uint8_t *)hdr + hlen, total - hlen, hdr->src, hdr->dst, iface);
+            return;
+
+        }
+    }
+    debugf("unsupported protocol");
 }
 
 static int

@@ -254,6 +254,8 @@ net_shutdown(void)
 }
 
 #include "ip.h"
+#include "icmp.h"
+
 int
 net_init(void)
 {
@@ -264,7 +266,11 @@ net_init(void)
     if (ip_init() == -1) {
         errorf("ip_init() failure");
         return -1;
-    }    
+    } 
+    if (icmp_init() == -1) {
+        errorf("icmp_init() failure");
+        return -1;
+    }   
     infof("initialized");
     return 0;
 }
