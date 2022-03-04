@@ -56,6 +56,8 @@ mutex_unlock(mutex_t *mutex)
 // ※ SIGRTMIN（34）に関しては glibc が内部的に利用しているため +1 した番号から利用するようにしている。
 #define INTR_IRQ_BASE (SIGRTMIN+1)
 
+// ソフトウェア割り込み
+#define INTR_IRQ_SOFTIRQ SIGUSR1
 #define INTR_IRQ_SHARED 0x0001
 
 extern int

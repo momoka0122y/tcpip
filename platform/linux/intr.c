@@ -6,7 +6,7 @@
 #include "platform.h"
 
 #include "util.h"
-
+#include "net.h"
 struct irq_entry {
   struct irq_entry *next;
   unsigned int irq;
@@ -85,6 +85,10 @@ intr_thread(void *arg)
         case SIGHUP:
             terminate = 1;
             break;
+        // ソフトウェア割り込みを捕捉したときの処理
+        case SIGUSR1:
+            net_softirq_handler();
+            break;
         default:
             for (entry = irqs; entry; entry = entry->next) {
                 if (entry->irq == (unsigned int)sig) {
@@ -136,6 +140,7 @@ intr_init(void)
     pthread_barrier_init(&barrier, NULL, 2);
     sigemptyset(&sigmask);
     sigaddset(&sigmask, SIGHUP);
+    sigaddset(&sigmask, SIGUSR1);
     return 0;
 }
 

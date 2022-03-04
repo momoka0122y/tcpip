@@ -6,6 +6,7 @@
 
 #include "util.h"
 #include "net.h"
+
 struct net_protocol {
     struct net_protocol *next;
     uint16_t type;
@@ -22,6 +23,7 @@ struct net_protocol_queue_entry {
 /* NOTE: if you want to add/delete the entries after net_run(), you need to protect these lists with a mutex. */
 static struct net_device *devices;
 static struct net_protocol *protocols;
+
 struct net_device *
 net_device_alloc(void)
 {
@@ -158,8 +160,29 @@ net_input_handler(uint16_t type, const uint8_t *data, size_t len, struct net_dev
     /* unsupported protocol */
     return 0;
 }
-
 int
+net_softirq_handler(void)
+{
+  struct net_protocol *proto;
+  struct net_protocol_queue_entry *entry;
+
+  for (proto = protocols; proto; proto = proto->next) {
+    while(1) {
+      entry = queue_pop(&proto->queue);
+      if (!entry) {
+        break;
+      }
+      debugf("queue popped (num:%u), dev=%s, type=0x%04x, len=%zu", proto-> queue.num, entry->dev->name, proto->type, entry->len);
+      debugdump(entry->data, entry->len);
+      proto->handler(entry->data, entry->len, entry->dev);
+      memory_free(entry);
+
+    }
+  }
+  return 0;
+}
+
+int 
 net_run(void)
 {
     struct net_device *dev;
