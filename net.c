@@ -89,7 +89,7 @@ net_device_close(struct net_device *dev)
 
 int
 net_device_output(struct net_device *dev, uint16_t type, const uint8_t *data, size_t len, const void *dst)
-{
+{   printf("\n");
     if (!NET_DEVICE_IS_UP(dev)) {
         errorf("not opened, dev=%s", dev->name);
         return -1;
@@ -154,6 +154,7 @@ net_input_handler(uint16_t type, const uint8_t *data, size_t len, struct net_dev
             }
             debugf("queue pushed (num:%u), dev=%s, type=0x%04x, len=%zu", proto->queue.num, dev->name, type, len);
             debugdump(data, len);
+            intr_raise_irq(INTR_IRQ_SOFTIRQ);
             return 0;
         }
     }
