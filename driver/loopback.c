@@ -124,7 +124,7 @@ loopback_init(void)
       return NULL;
   }
   
-  intr_request_irq(LOOPBACK_IRQ, loopback_isr, INTR_IRQ_SHARED, dev->name, dev);
+  intr_request_irq(lo->irq, loopback_isr, INTR_IRQ_SHARED, dev->name, dev);
   debugf("initialized, dev=%s", dev->name);
   return dev;
 
