@@ -305,7 +305,7 @@ ip_output_core(struct ip_iface *iface, uint8_t protocol, const uint8_t *data, si
     hdr->sum = 0;
     hdr->src = src;
     hdr->dst = dst;
-    hdr->sum = cksum16((uint16_t *)hdr, len, 0);
+    hdr->sum = cksum16((uint16_t *)hdr, hlen, 0);
 
     // IPヘッダの直後にデータを配置（コピー）する
      memcpy(hdr+1, data, len);
