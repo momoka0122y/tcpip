@@ -6,6 +6,9 @@
 
 #include "util.h"
 #include "net.h"
+#include "arp.h"
+#include "ip.h"
+#include "icmp.h"
 
 struct net_protocol {
     struct net_protocol *next;
@@ -201,6 +204,7 @@ net_input_handler(uint16_t type, const uint8_t *data, size_t len, struct net_dev
     /* unsupported protocol */
     return 0;
 }
+
 int
 net_softirq_handler(void)
 {
@@ -213,11 +217,10 @@ net_softirq_handler(void)
       if (!entry) {
         break;
       }
-      debugf("queue popped (num:%u), dev=%s, type=0x%04x, len=%zu", proto-> queue.num, entry->dev->name, proto->type, entry->len);
+      debugf("queue popped (num:%u), dev=%s, type=0x%04x, len=%zu", proto->queue.num, entry->dev->name, proto->type, entry->len);
       debugdump(entry->data, entry->len);
       proto->handler(entry->data, entry->len, entry->dev);
       memory_free(entry);
-
     }
   }
   return 0;
@@ -253,14 +256,16 @@ net_shutdown(void)
     debugf("shutting down");
 }
 
-#include "ip.h"
-#include "icmp.h"
 
 int
 net_init(void)
 {
     if (intr_init() == -1) {
         errorf("intr_init() failure");
+        return -1;
+    }
+    if (arp_init() == -1) {
+        errorf("arp_init() failure");
         return -1;
     }
     if (ip_init() == -1) {
