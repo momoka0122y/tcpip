@@ -331,8 +331,6 @@ ip_input(const uint8_t *data, size_t len, struct net_device *dev)
         /* iface is not registered to the device */
         return;
     }
-
-
     // 宛先IPアドレスの検証
     if (hdr->dst != iface->unicast) {
         if (hdr->dst != iface->broadcast && hdr->dst != IP_ADDR_BROADCAST) {
@@ -393,7 +391,6 @@ ip_output_core(struct ip_iface *iface, uint8_t protocol, const uint8_t *data, si
     hdr->src = src;
     hdr->dst = dst;
     hdr->sum = cksum16((uint16_t *)hdr, hlen, 0); /* don't convert byteoder */
-
     // IPヘッダの直後にデータを配置（コピー）する
      memcpy(hdr+1, data, len);
     debugf("dev=%s, dst=%s, protocol=%u, len=%u",
